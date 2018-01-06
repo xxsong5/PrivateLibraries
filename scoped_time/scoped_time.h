@@ -9,6 +9,7 @@
 #include <sys/time.h>
 #include <string>
 
+#pragma once
 
 class Scoped_time 
 {
