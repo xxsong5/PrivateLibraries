@@ -5,7 +5,6 @@
 #include <sstream>
 #include <string>
 #include <ctime>
-#include <stdio.h>
 #include <mutex>
 #include <thread>
 
