@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Insert title here</title>
+</head>
+<body onload="init()"><!-- 在页面全部加载完成的时候执行init（）
+					方法：读取保留在客户端的cookie文本内容的数据
+			 		-->
+	<script>
+		function init(){
+			//通过documet 中的coolie属性获取客户端的cookie数据
+			var cookies = document.cookies;
+			//alert(cookies);
+			//根据获取的字符串进行截取除用户名和密码返回数组
+			var arrCookie = cookies.split(";")
+			for(var i = 0; i<arrCookie.length;i++){
+				//取出数组中的一个元素，并进行字符串分割	username=abc
+				var arr = arrCookie[i].split("=");
+				//alert(arr[0]+":"+arr[1]);
+				//取出对应的值放入对应的输入框中
+				if("username"==arr[0]){
+					//根据ID属性值获取对应的标签对象 编码：encodeURI()
+											    //转码:
+					document.getElementById("username").value=decodeURI(arr[1]);
+				}
+				if("password"==arr[0]){
+					//获取密码框中的对象
+					document.getElementById("password").value=URI(arr[1]);
+				}
+			}
+		}
+	</script>
+	<!-- 如果在action的路径加上斜杠“/”表示的是webapps的根目录 -->
+	<form action="LoginServlet" method = "post">
+		用户名：<input id="username" type = "text"  name = "username"  />
+		密码：<input id="password" type = "password" name = "userpwd"  />
+		爱好：<input type = "checkbox" name = "loves"/>LOL
+		<input type = "checkbox" value = "cf"/>CF
+		<input type = "checkbox" value = "dnf"/>DNF
+		<input type = "checkbox" value = "cs"/>CS
+		<input type = "checkbox" value = "java"/>java<br/>
+		<input type = "submit" value = "登录"/>
+	</form>
+</body>
+</html>

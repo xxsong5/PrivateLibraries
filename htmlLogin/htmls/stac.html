@@ -1,0 +1,22 @@
+<body>
+<form name="login" onsubmit="javascript:return chkfrm(this);">
+  用户名:<input type="text" name="username" onpropertychange="javascript:if(this.value.length>=8)this.form.userpwd.focus();"><br>
+  密码:<input type="password" name="userpwd"><br>
+  <input type="submit" value="登录"> <input type="reset" value="重置">
+</form>
+<script language="javascript">
+function chkfrm(o){
+   if(o.username.value==''){
+      alert('请输入用户名！');
+      return false;
+   }
+   if(o.userpwd.value==''){
+      alert('请输入密码！');
+      return false;
+   }
+   alert('登陆成功');
+   return false;
+}
+</script>
+</body>
+
