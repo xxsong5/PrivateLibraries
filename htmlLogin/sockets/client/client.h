@@ -14,11 +14,13 @@
 #include <fcntl.h>
 #endif
 
-#include "Proxy.h"
+#include "defines/define.h"
+#include "proxy/Proxy.h"
+#include "socket/socket.h"
 
-typedef ProxyStatus ClientStatus;
+typedef Status ClientStatus;
 
-class Client {
+class Client :public Socket {
 
 public:
     // type 0 http
@@ -36,12 +38,6 @@ public:
 
 
     bool Transmitting();
-
-
-
-    int Snd(SOCKET socketfd, const char* snd, size_t len);
-
-    int Rcv(SOCKET socketfd, char **rcv);
 
 
 private:
