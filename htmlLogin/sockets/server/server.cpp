@@ -183,6 +183,12 @@ int Server::Rcv(SOCKET fd, std::string &strRcv)
 {
     char *str    = NULL;
     int   strLen = Socket::Rcv(fd, &str);
+
+    if (strLen <= 0){
+        free(str);
+        return strLen;
+    }
+
     strRcv       = std::string(str, strLen);
     free(str);
 
