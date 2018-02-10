@@ -281,3 +281,9 @@ bool CProxy::Send(SOCKET socket, const char* buf, int len)
   
     return true;  
 }  
+
+
+bool CProxy::HasProxyServer()
+{
+    return !m_proxyIp.empty();
+}

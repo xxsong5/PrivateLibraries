@@ -95,6 +95,8 @@ public:
         return  std::string(strIds);
     }
 
+    char* getMem1000(){return m_HeadInfo;}
+
     ~Logger(){
         if (m_pfile){
             fflush(m_pfile);
@@ -130,6 +132,7 @@ private:
     FILE                *m_pfile;
     std::string          m_filePrifix;
     std::string          m_preFileName;
+    char                 m_HeadInfo[1000];
 };
 
 #define     __GREEN_COLOR__     "\033[1;32m"
@@ -209,12 +212,12 @@ if (_logger){ \
 }while(0)  \
 
 
+
+
 #define LOGS  \
-    Logger * _logger = Logger::getInstance(); \
-    char headInfo[1000] = {}; \
-    if (_logger) \
-        sprintf(headInfo, "[LOG__%s__%s__%06d]:\t", _logger->gettid().c_str(), __FILE__, __LINE__); \
-    std::cout << __GREEN_COLOR__ << std::string(headInfo) 
+    if (Logger::getInstance()) \
+        sprintf(Logger::getInstance()->getMem1000(), "[LOG__%s__%s__%06d]:\t", Logger::getInstance()->gettid().c_str(), __FILE__, __LINE__); \
+    std::cout << __GREEN_COLOR__ << std::string(Logger::getInstance()->getMem1000())
 
 #define LOGE \
      __CLOSE_COLOR__ << std::endl;

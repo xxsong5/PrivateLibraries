@@ -26,10 +26,11 @@ class Server: public Socket{
 
 public:
 
-    Server(unsigned int  maxConnec = 100);
+    Server(unsigned int  maxConnec = 100):m_maxConnec(maxConnec){}
 
-    ServerStatus CreateLisener(u_short localPort = 8787, std::string localIp = "127.0.0.1");
+    ServerStatus CreateListener(u_short localPort = 8787, std::string localIp = "127.0.0.1");
 
+    void DoWork();
 
 
     const std::string& GetListenIP(){return m_listenIP;}

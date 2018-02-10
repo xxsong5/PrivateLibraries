@@ -1,5 +1,7 @@
+#ifndef __linux__
 #include "StdAfx.h"  
-#include "Base64.h"  
+#endif
+#include "CBase64.h"  
   
 CBase64::CBase64(void)  
 {  

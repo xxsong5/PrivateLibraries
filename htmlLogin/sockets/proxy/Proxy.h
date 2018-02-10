@@ -27,6 +27,7 @@ public:
     ~CProxy(void){};  
   
     ProxyStatus ConnectProxyServer(SOCKET socket);  
+    bool        HasProxyServer();
     ProxyStatus ConnectServer(SOCKET socket, std::string ip, u_short port);  
   
 private:  
