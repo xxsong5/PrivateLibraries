@@ -12,7 +12,7 @@ int main(int argc, char **argv)
     
     if (myServer.CreateListener(8787) == ServerStatus::SUCCESS){
         LOGS << "Server is listenning ... " << LOGE;
-        myServer.DoWork();
+        myServer.DoWork(7);
     }
 
     return 0;

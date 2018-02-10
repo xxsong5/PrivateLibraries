@@ -31,14 +31,19 @@ public:
     Client(long type=-1L, std::string ip="", u_short port=0, std::string username="", std::string password="")  
         :m_localProxy(type, ip, port, username, password) {}  
 
-    ~Client(){close(m_socket);}
+
+    ~Client() {
+        close(m_socket);
+    }
     
 
     ClientStatus Connect(std::string ServerIp, u_short ServerPort);
 
 
-    int Snd(const char* snd, size_t len);
+    int Snd(const std::string  &strSnd);
+    int Rcv(std::string &strRcv);
 
+    int Snd(const char* snd, size_t len);
     int Rcv(char **rcv);
 
 private:

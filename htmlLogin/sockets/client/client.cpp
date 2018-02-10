@@ -48,3 +48,19 @@ int Client::Rcv(char **rcv)
 {
     return Socket::Rcv(m_socket, rcv);
 }
+
+
+int Client::Snd(const std::string  &strSnd)
+{
+    return Snd(strSnd.c_str(), strSnd.length());
+}
+
+
+int Client::Rcv(std::string  &strRcv)
+{
+    char *str = NULL;
+    int   strLen = Rcv(&str);
+    strRcv = std::string(str, strLen);
+    free(str);
+    return strLen;
+}
