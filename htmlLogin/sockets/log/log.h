@@ -79,6 +79,7 @@ public:
 
         if (NULL != m_pfile){
             fwrite(strlog.c_str(), strlog.length(), 1, m_pfile);
+            fflush(m_pfile);
         }
 
     }

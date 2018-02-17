@@ -11,7 +11,7 @@ int main(int argc, char **argv)
 //    if ( myClient.Connect("47.93.53.181", 8989) != ClientStatus::SUCCESS ){
 //        return -1;
 //    }
-    if ( myClient.Connect("127.0.0.1", 8787) != ClientStatus::SUCCESS ){
+    if ( myClient.Connect("127.0.0.1", 8989) != ClientStatus::SUCCESS ){
         return -1;
     }
 

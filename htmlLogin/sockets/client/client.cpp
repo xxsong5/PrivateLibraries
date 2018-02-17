@@ -7,7 +7,6 @@ using namespace std;
 ClientStatus Client::Connect(string ServerIp, u_short ServerPort)
 {
     //创建一个套接字  
-    LOGS << "2.0" << LOGE;
     m_socket = socket(AF_INET,SOCK_STREAM,0);  
 
     if (m_localProxy.HasProxyServer()){
@@ -24,15 +23,12 @@ ClientStatus Client::Connect(string ServerIp, u_short ServerPort)
         servaddr.sin_port = htons(ServerPort);
         servaddr.sin_addr.s_addr = inet_addr(ServerIp.c_str());
 
-    LOGS << "2.1" << LOGE;
         //连接服务器，成功返回0，错误返回-1
         if (connect(m_socket, (struct sockaddr *)&servaddr, sizeof(servaddr)) < 0) {
-    LOGS << "2.2" << LOGE;
             close(m_socket);  
             return ClientStatus::CONNECT_SERVER_FAIL;
         }
     }
-    LOGS << "2.3" << LOGE;
 
     return ClientStatus::SUCCESS;
 }

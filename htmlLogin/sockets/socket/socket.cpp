@@ -82,7 +82,7 @@ int Socket::Rcv(SOCKET sockfd, char **rcv)
             // 需要再次读取
             totalRcved += buflen;
             totalLen    = totalRcved + 1024;
-            *rcv = (char*)realloc(rcv, totalLen);
+            *rcv = (char*)realloc(*rcv, totalLen);
             crcv = *rcv + totalRcved;
             clen = 1024;
         } else

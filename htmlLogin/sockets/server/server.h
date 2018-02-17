@@ -22,25 +22,33 @@
 
 typedef Status ServerStatus;
 
-typedef void (*ProcesserFunc)(const std::string &request, std::string &response);
+enum ServerType{
+    RAW_STRING,
+    HTTP_PROTOCOL,
+    SOCKS5_PROTOCOL
+};
+
+
+typedef bool (*ProcesserFunc)(const std::string &request, std::string &response);
+
 
 class Server: public Socket{
 
 public:
 
-    Server(unsigned int  maxConnec = 100):m_maxConnec(maxConnec){
+    Server( unsigned int  maxConnec = 100):
+         m_maxConnec(maxConnec){
     }
+
+    virtual ~Server(){}
 
 
     ServerStatus CreateListener(u_short localPort = 8787, std::string localIp = "127.0.0.1");
 
 
-    void DoWork(ProcesserFunc process = [](const std::string &request, std::string &response){
-        response = "hello, I'm OrangeServer";
-    });
-
     void DoWork(size_t threadCounts, ProcesserFunc process = [](const std::string &request, std::string &response){
         response = "hello, I'm OrangeServer";
+        return true;
     });
 
 
@@ -59,7 +67,6 @@ public:
     }
 
 
-private:
 
     int Snd(SOCKET fd, const std::string &strSnd);
 

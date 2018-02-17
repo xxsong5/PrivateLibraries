@@ -69,77 +69,6 @@ ServerStatus Server::CreateListener(u_short localPort, std::string localIp)
 }
 
 
-
-void Server::DoWork(ProcesserFunc process)
-{
-    //1. 创建epoll描述符, 可接受连接数
-    SOCKET epoll_fd = epoll_create(m_maxConnec);
- 
-    //2. 创建、绑定和侦听socket; 并且将它放到epoll上面开始侦听数据到达和connect连接
-    epoll_event ev;
-    ev.data.fd = m_listenSocket;
-    ev.events = EPOLLIN | EPOLLET;
-    if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, ev.data.fd, &ev) < 0){
-        char Info[1000];
-        sprintf(Info, "add listen fd failed!, which is belongs to %s:%d", m_listenIP.c_str(), m_listenPort);
-        LOGERROR(Info);
-        return;
-    }
- 
-    while (1)
-    {
-        // 等待epoll上面的事件触发，然后将他们的fd检索出来
-        struct epoll_event events[m_maxConnec];
-        int evn_cnt = epoll_wait(epoll_fd, events, m_maxConnec, -1);
- 
-        // 循环处理检索出来的events队列中的每个fd
-        for (int i=0; i<evn_cnt; i++)
-        {
-            if (events[i].data.fd == m_listenSocket)   // 有客户端connect过来
-            {
-                struct sockaddr_in caddr;
-                socklen_t clen = sizeof(caddr);
- 
-                // 接收连接
-                int connfd = accept(m_listenSocket, (sockaddr *)&caddr, &clen);
-                if (connfd < 0)
-                    continue;
- 
-                // 将新接收的连接的socket放到epoll上面
-                struct epoll_event ev;
-                ev.data.fd = connfd;
-                ev.events = EPOLLIN|EPOLLET;
-                epoll_ctl(epoll_fd, EPOLL_CTL_ADD, connfd, &ev);
-            }
-            else if (events[i].events & EPOLLIN)       // 有数据到达
-            {
-                //接收数据
-                std::string rcvDatas;
-                int rcvLen = Rcv(events[i].data.fd, rcvDatas);
-
-                if (rcvLen == 0){
-                    close(events[i].data.fd);
-                    epoll_ctl(epoll_fd, EPOLL_CTL_DEL, events[i].data.fd, &events[i]);
-
-                    LOGS << "SOCKET " << events[i].data.fd << "closed" << LOGE;
-                    continue;
-                }
-
-                LOGS <<"recved:\t" <<  rcvDatas << LOGE;
-
-                std::string strSnd;
-                process(rcvDatas, strSnd);
-                
-
-                Socket::Snd(events[i].data.fd, strSnd.c_str(), strSnd.length());
-            }
-        }
-    }
- 
-}
-
-
-
 void Server::DoWork(size_t threadCounts, ProcesserFunc process)
 {
     threadCounts = threadCounts > 100 ? 100 : threadCounts;
@@ -218,7 +147,7 @@ void Server::MainProcess(SOCKET epoll_fd, ProcesserFunc process)
                 int connfd = accept(m_listenSocket, (sockaddr *)&caddr, &clen);
                 if (connfd < 0)
                     continue;
- 
+                
                 // 将新接收的连接的socket放到epoll上面
                 struct epoll_event ev;
                 ev.data.fd = connfd;
@@ -231,7 +160,7 @@ void Server::MainProcess(SOCKET epoll_fd, ProcesserFunc process)
                 std::string rcvDatas;
                 int rcvLen = Rcv(events[i].data.fd, rcvDatas);
 
-                if (rcvLen == 0){
+                if (rcvLen <= 0){
                     close(events[i].data.fd);
                     epoll_ctl(epoll_fd, EPOLL_CTL_DEL, events[i].data.fd, &events[i]);
 
@@ -239,13 +168,20 @@ void Server::MainProcess(SOCKET epoll_fd, ProcesserFunc process)
                     continue;
                 }
 
-                LOGS <<"recved:\t" <<  rcvDatas << LOGE;
+
+                LOGINFO(rcvDatas+ "recved");
 
                 std::string strSnd;
-                process(rcvDatas, strSnd);
-                
+                bool needClose = process(rcvDatas, strSnd);
+                int  sndSize   = Socket::Snd(events[i].data.fd, strSnd.c_str(), strSnd.length());
 
-                Socket::Snd(events[i].data.fd, strSnd.c_str(), strSnd.length());
+                if (needClose || sndSize <= 0){
+                    close(events[i].data.fd);
+                    epoll_ctl(epoll_fd, EPOLL_CTL_DEL, events[i].data.fd, &events[i]);
+
+                    LOGS << "SOCKET " << events[i].data.fd << "closed" << LOGE;
+                    continue;
+                }
             }
         }
     }
