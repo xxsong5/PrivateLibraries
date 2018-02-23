@@ -8,12 +8,12 @@ int main(int argc, char **argv)
     LOGS << "I'm Client" << LOGE;
 
     Client myClient;
-//    if ( myClient.Connect("47.93.53.181", 8989) != ClientStatus::SUCCESS ){
-//        return -1;
-//    }
-    if ( myClient.Connect("127.0.0.1", 8989) != ClientStatus::SUCCESS ){
+    if ( myClient.Connect("47.93.53.181", 8989) != ClientStatus::SUCCESS ){
         return -1;
     }
+//    if ( myClient.Connect("127.0.0.1", 8989) != ClientStatus::SUCCESS ){
+//        return -1;
+//    }
 
     for (int i = 0;true; ++i){
 

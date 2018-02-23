@@ -40,37 +40,15 @@ ProxyStatus CProxy::ConnectProxyServer(SOCKET socket)
 #else
     servAddr.sin_addr.s_addr = inet_addr(ip.c_str());  
 #endif
-  
-    //设置非阻塞方式连接  
-#ifndef __linux__
-    unsigned long ul = 1;  
-    ret = ioctlsocket(socket, FIONBIO, (unsigned long*)&ul);  
-#else
-    ret = fcntl(socket, F_SETFL, fcntl(socket, F_GETFL, 0) | O_NONBLOCK);
-#endif
 
-    if(ret == SOCKET_ERROR)   
-    {  
-        return CONNECT_PROXY_FAIL;  
-    }  
+    ret = connect(socket, (sockaddr*)&servAddr, sizeof(sockaddr));  
   
-    connect(socket, (sockaddr*)&servAddr, sizeof(sockaddr));  
-  
-    FD_ZERO(&r);  
-    FD_SET(socket, &r);  
-    timeout.tv_sec = 5;   
-    timeout.tv_usec =0;  
-    ret = select(0, 0, &r, 0, &timeout);  
-  
-    if (ret <= 0)  
-    {  
-        m_blnProxyServerOk = false;  
-        return CONNECT_PROXY_FAIL;  
-    }  
-    else  
-    {  
+    if (0 == ret) {  
         m_blnProxyServerOk = true;  
         return SUCCESS;  
+    }  else  {  
+        m_blnProxyServerOk = false;  
+        return CONNECT_PROXY_FAIL;  
     }  
 }  
   
@@ -119,30 +97,27 @@ ProxyStatus CProxy::ConnectByHttp(SOCKET socket, string ip, u_short port)
 {  
     char buf[1024];  
   
-    if (m_proxyUserName != "")  
-    {  
+    if (m_proxyUserName != "")  {  
+
         string str;  
         string strBase64;  
         str = m_proxyUserName + ":" + m_proxyUserPwd;  
         strBase64 = CBase64::Encode((unsigned char*)str.c_str(), str.length());  
         sprintf(buf, "CONNECT %s:%d HTTP/1.1\r\nHost: %s:%d\r\nAuthorization: Basic %s\r\n\r\nProxy-Authorization: Basic %s\r\n\r\n",   
             ip.c_str(), port, ip.c_str(), port, strBase64.c_str(), strBase64.c_str());  
-    }  
-    else  
-    {  
-        //sprintf_s(buf, 512, "CONNECT %s:%d HTTP/1.1\r\nHost: %s:%d\r\n\r\n", ip.c_str(), port, ip.c_str(), port);  
+
+    }  else  {  
+
         sprintf(buf, "CONNECT %s:%d HTTP/1.1\r\nUser-Agent: MyApp/0.1\r\n\r\n", ip.c_str(), port);  
     }  
   
     Send(socket, buf, strlen(buf));  
+
     Receive(socket, buf, sizeof(buf));  
   
-    if (strstr(buf, "HTTP/1.0 200 Connection established") != NULL)  
-    {  
+    if (strstr(buf, "HTTP/1.0 200 Connection established") != NULL)  {  
         return SUCCESS;  
-    }  
-    else  
-    {  
+    }  else  {  
         return CONNECT_SERVER_FAIL;  
     }  
 }  

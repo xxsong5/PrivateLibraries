@@ -164,12 +164,10 @@ void Server::MainProcess(SOCKET epoll_fd, ProcesserFunc process)
                     close(events[i].data.fd);
                     epoll_ctl(epoll_fd, EPOLL_CTL_DEL, events[i].data.fd, &events[i]);
 
-                    LOGS << "SOCKET " << events[i].data.fd << "closed" << LOGE;
+                    LOGS << "SOCKET " << events[i].data.fd << " closed" << LOGE;
                     continue;
                 }
 
-
-                LOGINFO(rcvDatas+ "recved");
 
                 std::string strSnd;
                 bool needClose = process(rcvDatas, strSnd);
@@ -179,7 +177,7 @@ void Server::MainProcess(SOCKET epoll_fd, ProcesserFunc process)
                     close(events[i].data.fd);
                     epoll_ctl(epoll_fd, EPOLL_CTL_DEL, events[i].data.fd, &events[i]);
 
-                    LOGS << "SOCKET " << events[i].data.fd << "closed" << LOGE;
+                    LOGS << "SOCKET " << events[i].data.fd << " closed" << LOGE;
                     continue;
                 }
             }

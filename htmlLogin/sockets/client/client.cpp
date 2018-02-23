@@ -40,15 +40,16 @@ int Client::Snd(const char* snd, size_t len)
     return Socket::Snd(m_socket,snd, len);
 }
 
-int Client::Rcv(char **rcv)
-{
-    return Socket::Rcv(m_socket, rcv);
-}
-
 
 int Client::Snd(const std::string  &strSnd)
 {
     return Snd(strSnd.c_str(), strSnd.length());
+}
+
+
+int Client::Rcv(char **rcv)
+{
+    return Socket::Rcv(m_socket, rcv);
 }
 
 

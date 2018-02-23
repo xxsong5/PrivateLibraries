@@ -61,3 +61,10 @@ executable/server.cpp
 target_link_libraries( server
 ${PROJECT_NAME}
 )
+
+add_executable( winUI 
+executable/WinUI.cpp
+)
+target_link_libraries( winUI 
+${PROJECT_NAME}
+)
