@@ -94,3 +94,27 @@ int Socket::Rcv(SOCKET sockfd, char **rcv)
 
     return totalRcved;
 }
+
+
+
+int Socket::Snd(SOCKET socketfd, const std::string &strSnd)
+{
+    return Snd(socketfd, strSnd.c_str(), strSnd.length());
+}
+
+
+int Socket::Rcv(SOCKET fd, std::string &strRcv)
+{
+    char *str    = NULL;
+    int   strLen = Socket::Rcv(fd, &str);
+
+    if (strLen <= 0){
+        free(str);
+        return strLen;
+    }
+
+    strRcv       = std::string(str, strLen);
+    free(str);
+
+    return strLen;
+}

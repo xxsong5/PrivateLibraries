@@ -67,13 +67,6 @@ public:
     }
 
 
-
-    int Snd(SOCKET fd, const std::string &strSnd);
-
-
-    int Rcv(SOCKET fd, std::string &strRcv);
-
-
     void MainProcess(SOCKET fd, ProcesserFunc process);
 
 private:

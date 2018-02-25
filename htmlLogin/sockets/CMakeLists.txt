@@ -55,6 +55,14 @@ target_link_libraries( client
 ${PROJECT_NAME}
 )
 
+
+add_executable( travelsky
+executable/clientTravelsky.cpp
+)
+target_link_libraries( travelsky
+${PROJECT_NAME}
+)
+
 add_executable( server
 executable/server.cpp
 )
@@ -66,5 +74,12 @@ add_executable( winUI
 executable/WinUI.cpp
 )
 target_link_libraries( winUI 
+${PROJECT_NAME}
+)
+
+add_executable( winUITravelsky 
+executable/WinUITravelsky.cpp
+)
+target_link_libraries( winUITravelsky
 ${PROJECT_NAME}
 )

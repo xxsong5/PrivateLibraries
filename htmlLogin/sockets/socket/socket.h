@@ -26,6 +26,8 @@ class Socket{
 public:
 
     int Snd(SOCKET socketfd, const char* snd, size_t len);
+    int Snd(SOCKET socketfd, const std::string &strSnd);
 
     int Rcv(SOCKET socketfd, char **rcv);
+    int Rcv(SOCKET socketfd, std::string &strRcvd);
 };

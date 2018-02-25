@@ -103,19 +103,19 @@ ProxyStatus CProxy::ConnectByHttp(SOCKET socket, string ip, u_short port)
         string strBase64;  
         str = m_proxyUserName + ":" + m_proxyUserPwd;  
         strBase64 = CBase64::Encode((unsigned char*)str.c_str(), str.length());  
-        sprintf(buf, "CONNECT %s:%d HTTP/1.1\r\nHost: %s:%d\r\nAuthorization: Basic %s\r\n\r\nProxy-Authorization: Basic %s\r\n\r\n",   
+        sprintf(buf, "CONNECT %s:%d HTTP/1.1\r\nHost: %s:%d\r\nProxy-Connection: Keep-Alive\r\nAuthorization: Basic %s\r\n\r\nProxy-Authorization: Basic %s\r\n\r\n",   
             ip.c_str(), port, ip.c_str(), port, strBase64.c_str(), strBase64.c_str());  
 
     }  else  {  
 
-        sprintf(buf, "CONNECT %s:%d HTTP/1.1\r\nUser-Agent: MyApp/0.1\r\n\r\n", ip.c_str(), port);  
+        sprintf(buf, "CONNECT %s:%d HTTP/1.1\r\nProxy-Connection: Keep-Alive\r\nUser-Agent: MyApp/0.1\r\n\r\n", ip.c_str(), port);  
     }  
   
     Send(socket, buf, strlen(buf));  
 
     Receive(socket, buf, sizeof(buf));  
   
-    if (strstr(buf, "HTTP/1.0 200 Connection established") != NULL)  {  
+    if (strstr(buf, "HTTP/1.1 200 Connection established") != NULL)  {  
         return SUCCESS;  
     }  else  {  
         return CONNECT_SERVER_FAIL;  

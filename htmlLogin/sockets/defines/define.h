@@ -6,7 +6,7 @@
 #define SOCKET_ERROR -1
 #endif
 
-
+#define SOCKET_NO_PAIR  -99
 
 enum Status  
 {  
@@ -16,7 +16,6 @@ enum Status
     CONNECT_SERVER_FAIL, 
     CREATE_LISTENER_FAIL
 };  
-
 
 
 struct TSock4req1   

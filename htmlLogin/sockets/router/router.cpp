@@ -1,12 +1,12 @@
-#include "server.h"
+#include "router.h"
 #include "log/log.h"
-#include <sys/epoll.h>
-#include <thread>
 
 
 
 
-ServerStatus Server::CreateListener(u_short localPort, std::string localIp)
+
+
+RouterStatus Router::CreateListener(u_short localPort, std::string localIp)
 {
     SOCKET fd;
  
@@ -50,7 +50,7 @@ ServerStatus Server::CreateListener(u_short localPort, std::string localIp)
     if (bind(fd, (struct sockaddr *)&sin, sizeof(sin)) != 0)
     {
         close(fd);
-        return ServerStatus::CREATE_LISTENER_FAIL;
+        return RouterStatus::CREATE_LISTENER_FAIL;
     }
     
  
@@ -58,23 +58,23 @@ ServerStatus Server::CreateListener(u_short localPort, std::string localIp)
     if (listen(fd, 32) != 0)
     {
         close(fd);
-        return ServerStatus::CREATE_LISTENER_FAIL;
+        return RouterStatus::CREATE_LISTENER_FAIL;
     }
  
     m_listenSocket  =   fd;
     m_listenIP      =   localIp;
     m_listenPort    =   localPort;
 
-    return ServerStatus::SUCCESS;
+    return RouterStatus::SUCCESS;
 }
 
 
-void Server::DoWork(size_t threadCounts, ProcesserFunc process)
+void Router::DoWork(size_t threadCounts, ProcesserFunc process)
 {
     threadCounts = threadCounts > 100 ? 100 : threadCounts;
 
     //1. 创建epoll描述符, 可接受连接数
-    SOCKET epoll_fd = epoll_create(m_maxConnec);
+    SOCKET epoll_fd = epoll_create(m_maxConnect);
  
     //2. 创建、绑定和侦听socket; 并且将它放到epoll上面开始侦听数据到达和connect连接
     epoll_event ev;
@@ -90,7 +90,7 @@ void Server::DoWork(size_t threadCounts, ProcesserFunc process)
 
     std::vector< std::thread > threadPools;
     for (int i = 0; i < threadCounts; ++i){
-        threadPools.emplace_back(&Server::MainProcess, this, epoll_fd, process);
+        threadPools.emplace_back(&Router::MainProcess, this, epoll_fd, process);
     }
 
 
@@ -103,15 +103,15 @@ void Server::DoWork(size_t threadCounts, ProcesserFunc process)
 }
 
 
-void Server::MainProcess(SOCKET epoll_fd, ProcesserFunc process)
+void Router::MainProcess(SOCKET epoll_fd, ProcesserFunc process)
 {
     LOGWARN("Waiting for service ...");
 
     while (1)
     {
         // 等待epoll上面的事件触发，然后将他们的fd检索出来
-        struct epoll_event events[m_maxConnec];
-        int evn_cnt = epoll_wait(epoll_fd, events, m_maxConnec, -1);
+        struct epoll_event events[m_maxConnect];
+        int evn_cnt = epoll_wait(epoll_fd, events, m_maxConnect, -1);
  
         // 循环处理检索出来的events队列中的每个fd
         for (int i=0; i<evn_cnt; i++)
@@ -131,9 +131,13 @@ void Server::MainProcess(SOCKET epoll_fd, ProcesserFunc process)
                 ev.data.fd = connfd;
                 ev.events = EPOLLIN|EPOLLET;
                 epoll_ctl(epoll_fd, EPOLL_CTL_ADD, connfd, &ev);
+                fillSourceFD(connfd);
             }
             else if (events[i].events & EPOLLIN)       // 有数据到达
             {
+                SOCKET targetFD = getTargetFDbySourceFD(events[i].data.fd);
+                SOCKET sourceFD = getSourceFDbyTargetFD(events[i].data.fd);
+
                 //接收数据
                 std::string rcvDatas;
                 int rcvLen = Rcv(events[i].data.fd, rcvDatas);
@@ -142,24 +146,72 @@ void Server::MainProcess(SOCKET epoll_fd, ProcesserFunc process)
                     close(events[i].data.fd);
                     epoll_ctl(epoll_fd, EPOLL_CTL_DEL, events[i].data.fd, &events[i]);
 
-                    LOGS << "SOCKET " << events[i].data.fd << " closed" << LOGE;
+                    if (targetFD > 0){
+                        close(targetFD);
+                        struct epoll_event ev;
+                        ev.data.fd = targetFD;
+                        ev.events = EPOLLIN|EPOLLET;
+                        epoll_ctl(epoll_fd, EPOLL_CTL_DEL, targetFD, &ev);
+                        dropPairFDsBySourceFD(events[i].data.fd);
+                    }
+                    if (sourceFD > 0){
+                        close(sourceFD);
+                        struct epoll_event ev;
+                        ev.data.fd = sourceFD;
+                        ev.events = EPOLLIN|EPOLLET;
+                        epoll_ctl(epoll_fd, EPOLL_CTL_DEL, sourceFD, &ev);
+                        dropPairFDsBySourceFD(sourceFD);
+                    }
+
+                    LOGS << "SOCKET " << events[i].data.fd <<" with " << (targetFD>1?targetFD : sourceFD) <<" closed" << LOGE;
                     continue;
                 }
 
-
                 std::string strSnd; int  sndSize{-1};
-                bool success = process(rcvDatas, strSnd);
+                bool success = true;
 
-                if (!strSnd.empty())
-                    sndSize = Socket::Snd(events[i].data.fd, strSnd.c_str(), strSnd.length());
+                if (sourceFD > 0 && targetFD < 1){
+                    sndSize = Socket::Snd(targetFD, rcvDatas.c_str(), rcvDatas.length());
+                }
+
+                if (targetFD > 0 || targetFD == SOCKET_NO_PAIR){
+
+                    if (targetFD == SOCKET_NO_PAIR){
+                        targetFD = ConnectByRequest(rcvDatas);
+
+                        if (targetFD > 1){
+                            struct epoll_event ev;
+                            ev.data.fd = targetFD;
+                            ev.events = EPOLLIN|EPOLLET;
+                            epoll_ctl(epoll_fd, EPOLL_CTL_ADD, targetFD, &ev);
+                            fillTargetFDbySourceFD(events[i].data.fd, targetFD);
+                        } else {
+                            success = false;
+                        }
+                    }
+
+
+                    if (success){
+                            sndSize = Socket::Snd(targetFD, rcvDatas.c_str(), rcvDatas.length());
+                    }
+                }
 
                 if (!success || sndSize <= 0){
                     close(events[i].data.fd);
+                    close(targetFD>0 ? targetFD : sourceFD);
+
                     epoll_ctl(epoll_fd, EPOLL_CTL_DEL, events[i].data.fd, &events[i]);
 
-                    LOGS << "SOCKET " << events[i].data.fd << " closed" << LOGE;
-                    continue;
+                    struct epoll_event ev;
+                    ev.data.fd = targetFD>0? targetFD : sourceFD;
+                    ev.events = EPOLLIN|EPOLLET;
+                    epoll_ctl(epoll_fd, EPOLL_CTL_DEL, targetFD>0? targetFD : sourceFD, &ev);
+
+                    LOGS << "SOCKET " << events[i].data.fd <<" with " << targetFD <<" closed" << LOGE;
                 }
+
+
+
             }
         }
     }

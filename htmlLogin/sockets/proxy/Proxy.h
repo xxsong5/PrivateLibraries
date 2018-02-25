@@ -20,15 +20,26 @@ typedef Status ProxyStatus;
 class CProxy  
 {  
 public:  
+    CProxy(){};
     CProxy(long type, std::string ip, u_short port, std::string username, std::string password)  
         :m_proxyType(type), m_proxyIp(ip), m_proxyPort(port), m_proxyUserName(username), m_proxyUserPwd(password)  
     {}  
   
     ~CProxy(void){};  
+
+
+    void SetProxy(long type, std::string ip, u_short port, std::string username, std::string password)
+    {
+        m_proxyType =   type;
+        m_proxyIp   =   ip;
+        m_proxyPort =   port;
+        m_proxyUserName =   username; 
+        m_proxyUserPwd  =   password;  
+    }
   
     ProxyStatus ConnectProxyServer(SOCKET socket);  
-    bool        HasProxyServer();
     ProxyStatus ConnectServer(SOCKET socket, std::string ip, u_short port);  
+    bool        HasProxyServer();
   
 private:  
     ProxyStatus ConnectByHttp(SOCKET socket,  std::string ip, u_short port);  
