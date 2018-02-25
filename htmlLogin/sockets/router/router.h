@@ -59,8 +59,8 @@ private:
 
     RouterStatus CreateListener(u_short localPort, std::string localIp);
 
-    void DoWork(size_t threadCounts, ProcesserFunc process);
-    void Router::MainProcess(SOCKET epoll_fd, ProcesserFunc process);
+    void DoWork(size_t threadCounts);
+    void MainProcess(SOCKET epoll_fd);
 
     SOCKET ConnectByRequest(const std::string &request);
 
