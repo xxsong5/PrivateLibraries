@@ -1,6 +1,8 @@
 #include "router.h"
 #include "log/log.h"
 
+using namespace std;
+
 
 
 
@@ -235,15 +237,74 @@ void Router::MainProcess(SOCKET epoll_fd)
 SOCKET Router::ConnectByRequest(const std::string &request)
 {
     //get remotehost by request
-
-    // route filter by switchRuleMatched()
-
-    // if(common) (using Proxy conncect Proxy )(connect remotehost)
-
-    // if (google.com) (conncect OrangeSeverSocket)
+    string  _host = "xxx.com";  
+    u_short _port = 80;//如果url中没有指明端口号，就设定默认的80  
 
 
-    // return connected socket
+    sockaddr_in addr_server;  
+    memset(&addr_server, 0, sizeof(addr_server));
+
+    if (!switchRuleMatched(_host)){
+
+        SOCKET sock;
+        if (HasProxyServer()){
+
+            addr_server.sin_family = AF_INET;
+            addr_server.sin_port = htons(GetProxyPort());
+            addr_server.sin_addr.s_addr = inet_addr(GetProxyIP().c_str());
+
+            sock = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP);  
+        } else {
+            struct hostent *p_hostent = gethostbyname(_host.c_str());  
+            if(p_hostent == NULL) {
+                return -1;  
+            }
+            addr_server.sin_family = AF_INET;  
+            addr_server.sin_port = htons(_port);
+            memcpy(&(addr_server.sin_addr),p_hostent->h_addr_list[0],sizeof(addr_server.sin_addr));  
+
+            sock = socket(p_hostent->h_addrtype,SOCK_STREAM,IPPROTO_TCP);  
+        }
+
+        int res = connect(sock,(sockaddr*)&addr_server,sizeof(addr_server));  
+
+        if(res < 0){
+            close(sock);
+            return -1;
+        } else {
+            return sock;
+        }
+
+    } else {
+
+        SOCKET sock = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP);  
+        if (HasProxyServer()){
+
+            if (ConnectProxyServer(sock) != ProxyStatus::SUCCESS){
+                close(sock);
+                return -1;
+            }
+
+            if (ConnectServer(sock, m_orangeServerIP, m_orangeServerPort) == ProxyStatus::SUCCESS){
+                return sock;
+            } else {
+                close(sock);
+                return -1;
+            }
+
+        } else {
+
+            addr_server.sin_family = AF_INET;
+            addr_server.sin_port = htons(m_orangeServerPort);
+            addr_server.sin_addr.s_addr = inet_addr(m_orangeServerIP.c_str());
+            if (connect(sock,(sockaddr*)&addr_server,sizeof(addr_server)) >= 0){
+                return sock;
+            } else {
+                close(sock);
+                return -1;
+            }
+        }
+    }
 }
 
 

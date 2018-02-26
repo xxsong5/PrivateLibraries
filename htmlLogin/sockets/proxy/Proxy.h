@@ -36,6 +36,14 @@ public:
         m_proxyUserName =   username; 
         m_proxyUserPwd  =   password;  
     }
+
+    std::string GetProxyIP(){
+        return m_proxyIp;
+    }
+
+    u_short GetProxyPort(){
+        return m_proxyPort;
+    }
   
     ProxyStatus ConnectProxyServer(SOCKET socket);  
     ProxyStatus ConnectServer(SOCKET socket, std::string ip, u_short port);  

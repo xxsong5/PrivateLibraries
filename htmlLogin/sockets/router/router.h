@@ -10,6 +10,7 @@
 #include <sys/epoll.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
+#include <netdb.h>
 #include <fcntl.h>
 #endif
 
