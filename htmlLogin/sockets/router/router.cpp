@@ -49,16 +49,15 @@ RouterStatus Router::CreateListener(u_short localPort, std::string localIp)
 #else
     sin.sin_addr.s_addr = inet_addr(localIp.c_str());  
 #endif
-    if (bind(fd, (struct sockaddr *)&sin, sizeof(sin)) != 0)
-    {
+
+    if (bind(fd, (struct sockaddr *)&sin, sizeof(sin)) != 0){
         close(fd);
         return RouterStatus::CREATE_LISTENER_FAIL;
     }
     
  
     // 开始侦听该端口
-    if (listen(fd, 32) != 0)
-    {
+    if (listen(fd, 32) != 0){
         close(fd);
         return RouterStatus::CREATE_LISTENER_FAIL;
     }
