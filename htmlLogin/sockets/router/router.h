@@ -19,6 +19,9 @@
 #include <vector>
 #include <thread>
 #include <mutex>
+#include "boost/thread/thread.hpp"  
+#include "boost/bind.hpp"
+#include "boost/thread/mutex.hpp"
 #include <unordered_map>
 #include "proxy/Proxy.h"
 #include "socket/socket.h"
@@ -48,15 +51,15 @@ public:
                                       const std::string &ProxyPassword);
 
 
+    void addSwitchRule(const std::string &url);
+
     void Run();
+    void Stop();
 
 
 private:
 
     void keepOrangeServerProxyAlive();
-
-    bool switchRuleMatched(const std::string &url);
-    bool dispatchRequest(SOCKET sourceFD, const std::string &request, std::string &reponse);
 
     RouterStatus CreateListener(u_short localPort, std::string localIp);
 
@@ -64,6 +67,11 @@ private:
     void MainProcess(SOCKET epoll_fd);
 
     SOCKET ConnectByRequest(const std::string &request);
+
+    int getHostPortbyHttpRequest(const std::string &httpRequest, std::string &url);
+
+    bool switchRuleMatched(const std::string &url);
+
 
 
     void fillTargetFDbySourceFD(SOCKET indexfd, SOCKET targetfd);
@@ -83,12 +91,13 @@ private:
     u_short                  m_listenPort;
     SOCKET                   m_listenSocket;
     const int                m_maxConnect;
+    long                     m_routerProtocolType;
 
     SOCKET                   m_orangeServerSocket;
 
+    boost::shared_mutex      m_switchRuleSharedMutex;
     std::vector<std::string> m_switchRules; //*NOTE* call directly or through OrangeServer, all matched will call through Orangeserver
 
-    long            m_routerProtocolType;
 
     //OrangeServerInformation
     std::string     m_orangeServerIP;
@@ -96,6 +105,7 @@ private:
 
     std::string     m_orangeServerUserName;
     std::string     m_orangeServerPassword;
+    bool            m_hasOrangeServerAuthority;
 
 
     // Proxy Information
@@ -104,6 +114,10 @@ private:
 
     std::string     m_proxyUserName;
     std::string     m_proxyPassword;
+
+    //running thread information
+    volatile bool   m_doRun;
+    std::vector< std::thread >  m_threadPools;
 
 };
 

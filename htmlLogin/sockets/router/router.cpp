@@ -1,10 +1,91 @@
 #include "router.h"
+#include "proxy/Proxy.h"
 #include "log/log.h"
 
 using namespace std;
 
 
+Router::Router(long type, u_short listenPort, const std::string &listenIP, long maxConnect): 
+m_listenIP(listenIP), m_listenPort(listenPort), m_maxConnect(maxConnect), m_routerProtocolType(type)
+{
+    m_listenSocket  =   -1;
+    m_orangeServerSocket    =   -1;
+    m_hasOrangeServerAuthority  =   false;
 
+    addSwitchRule("google");
+    addSwitchRule("youtube");
+}
+
+Router::~Router()
+{
+    // waitting all thread done
+    for (size_t i = 0; i < m_threadPools.size(); ++i){
+        m_threadPools[i].join();
+    }
+
+    //close left sockets
+    for (auto iter = m_pairFDsSourceTarget.begin(); iter != m_pairFDsSourceTarget.end(); ++iter){
+        close(iter->first);
+    }
+
+    for (auto iter = m_pairFDsTargetSource.begin(); iter != m_pairFDsTargetSource.end(); ++iter){
+        close(iter->first);
+    }
+
+    //print current rules info
+    LOGINFO("all rules are : ");
+    for(size_t i = 0, end = m_switchRules.size(); i < end; ++i){
+        LOGINFO(m_switchRules[i]);
+    }
+}
+
+
+void Router::Run()
+{
+    if (CreateListener(m_listenPort, m_listenIP) != RouterStatus::SUCCESS){
+        LOGERROR("create listenning socket failed");
+    }
+
+    SetProxy(m_routerProtocolType, m_proxyIP, m_proxyPort, m_proxyUserName, m_proxyPassword);
+
+    m_doRun = true;
+
+    DoWork(7);
+}
+
+
+void Router::Stop()
+{
+    m_doRun = false;
+}
+
+RouterStatus Router::SetOrangeServerInfo(const std::string &OrangeServerIP,
+                                 u_short OrangeServerPort, 
+                                 const std::string &OrangeServerUserName, 
+                                 const std::string &OrangeServerPassword)
+{
+    m_orangeServerIP    =   OrangeServerIP;
+    m_orangeServerPort  =   OrangeServerPort;
+    m_orangeServerUserName  =   OrangeServerUserName;
+    m_orangeServerPassword  =   OrangeServerPassword;
+
+    return RouterStatus::SUCCESS;
+}
+
+
+
+ RouterStatus Router::SetRemoteServerProxy(const std::string &ProxyIP,
+                                   u_short ProxyPort, 
+                                   const std::string &ProxyUserName, 
+                                   const std::string &ProxyPassword)
+{
+    m_proxyIP   =   ProxyIP;
+    m_proxyPort =   ProxyPort;
+    m_proxyUserName =   ProxyUserName;
+    m_proxyPassword =   ProxyPassword;
+
+    return RouterStatus::SUCCESS;
+}
 
 
 
@@ -73,6 +154,7 @@ RouterStatus Router::CreateListener(u_short localPort, std::string localIp)
 void Router::DoWork(size_t threadCounts)
 {
     threadCounts = threadCounts > 100 ? 100 : threadCounts;
+    threadCounts = threadCounts < 1 ? 1 : threadCounts;
 
     //1. 创建epoll描述符, 可接受连接数
     SOCKET epoll_fd = epoll_create(m_maxConnect);
@@ -89,18 +171,11 @@ void Router::DoWork(size_t threadCounts)
     }
 
 
-    std::vector< std::thread > threadPools;
     for (int i = 0; i < threadCounts; ++i){
-        threadPools.emplace_back(&Router::MainProcess, this, epoll_fd);
+        m_threadPools.emplace_back(&Router::MainProcess, this, epoll_fd);
     }
 
 
-    MainProcess(epoll_fd);
-
-
-    for (size_t i = 0; i < threadPools.size(); ++i){
-        threadPools[i].join();
-    }
 }
 
 
@@ -108,7 +183,7 @@ void Router::MainProcess(SOCKET epoll_fd)
 {
     LOGWARN("Waiting for service ...");
 
-    while (1)
+    while (m_doRun)
     {
         // 等待epoll上面的事件触发，然后将他们的fd检索出来
         struct epoll_event events[m_maxConnect];
@@ -181,7 +256,7 @@ void Router::MainProcess(SOCKET epoll_fd)
                     if (targetFD == SOCKET_NO_PAIR){
                         targetFD = ConnectByRequest(rcvDatas);
 
-                        if (targetFD > 1){
+                        if (targetFD >= 1){
                             struct epoll_event ev;
                             ev.data.fd = targetFD;
                             ev.events = EPOLLIN|EPOLLET;
@@ -231,19 +306,47 @@ void Router::MainProcess(SOCKET epoll_fd)
 
 }
 
+bool Router::switchRuleMatched(const std::string &url)
+{
+    boost::shared_lock<boost::shared_mutex>  slck(m_switchRuleSharedMutex);
+    
+    auto iter = std::find_if(m_switchRules.begin(), m_switchRules.end(), [&](const std::string &rule){
+        return url.find(rule) != std::string::npos ? true : false;
+    });
 
+    if (iter != m_switchRules.end()){
+        return true;
+    }
+
+    return false;
+}
+
+void Router::addSwitchRule(const std::string &RawAtom)
+{
+    boost::unique_lock<boost::shared_mutex>  ulck(m_switchRuleSharedMutex);
+
+    if (!switchRuleMatched(RawAtom)){
+        m_switchRules.push_back(RawAtom);
+    }
+}
+
+int Router::getHostPortbyHttpRequest(const std::string &httpRequest, std::string &url)
+{
+    //如果url中没有指明端口号，就设定默认的80  
+
+}
 
 SOCKET Router::ConnectByRequest(const std::string &request)
 {
     //get remotehost by request
-    string  _host = "xxx.com";  
-    u_short _port = 80;//如果url中没有指明端口号，就设定默认的80  
+    string  _host = "";  
+    int     _port = getHostPortbyHttpRequest(request, _host);
 
 
     sockaddr_in addr_server;  
     memset(&addr_server, 0, sizeof(addr_server));
 
-    if (!switchRuleMatched(_host)){
+    if (!m_hasOrangeServerAuthority || !switchRuleMatched(_host)){
 
         SOCKET sock;
         if (HasProxyServer()){
@@ -354,8 +457,8 @@ SOCKET Router::getTargetFDbySourceFD(SOCKET srcFd) // invaild if less than 1
 {
     std::lock_guard<std::mutex>  lck(m_FDsMutex);
     
-    if (m_pairFDsSourceTarget.find(srcfd) != m_pairFDsSourceTarget.end()){
-        return m_pairFDsSourceTarget[srcfd];
+    if (m_pairFDsSourceTarget.find(srcFd) != m_pairFDsSourceTarget.end()){
+        return m_pairFDsSourceTarget[srcFd];
     }
 
     return -1;
