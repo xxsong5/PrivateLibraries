@@ -41,14 +41,14 @@ public:
 
     RouterStatus SetOrangeServerInfo(const std::string &OrangeServerIP,
                                      u_short OrangeServerPort, 
-                                     const std::string &OrangeServerUserName, 
-                                     const std::string &OrangeServerPassword);
+                                     const std::string &OrangeServerUserName = "", 
+                                     const std::string &OrangeServerPassword = "");
 
 
     RouterStatus SetRemoteServerProxy(const std::string &ProxyIP,
                                       u_short ProxyPort, 
-                                      const std::string &ProxyUserName, 
-                                      const std::string &ProxyPassword);
+                                      const std::string &ProxyUserName = "", 
+                                      const std::string &ProxyPassword = "");
 
 
     void addSwitchRule(const std::string &url);

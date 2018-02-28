@@ -42,15 +42,21 @@ Router::~Router()
 
 void Router::Run()
 {
+    if (m_listenIP.empty() || m_listenPort <= 0){
+        LOGERROR("listenning IP or Port is empty");
+        return;
+    }
+
     if (CreateListener(m_listenPort, m_listenIP) != RouterStatus::SUCCESS){
         LOGERROR("create listenning socket failed");
+        return;
     }
 
     SetProxy(m_routerProtocolType, m_proxyIP, m_proxyPort, m_proxyUserName, m_proxyPassword);
 
     m_doRun = true;
 
-    DoWork(7);
+    DoWork(1);
 }
 
 
@@ -239,9 +245,10 @@ void Router::MainProcess(SOCKET epoll_fd)
                         dropPairFDsBySourceFD(sourceFD);
                     }
 
-                    LOGS << "SOCKET " << events[i].data.fd <<" with " << (targetFD > 0 ? targetFD : sourceFD) <<" closed" << LOGE;
+                    LOGS << "SOCKET " << events[i].data.fd <<" with " << (targetFD > 0 || targetFD == SOCKET_NO_PAIR ? targetFD : sourceFD) <<" closed" << LOGE;
                     continue;
                 }
+
 
                 std::string strSnd; int  sndSize{-1};
                 bool success = true;
@@ -249,12 +256,16 @@ void Router::MainProcess(SOCKET epoll_fd)
                 if (sourceFD > 0 && targetFD < 1){
                     //right hand Rcved
                     sndSize = Socket::Snd(sourceFD, rcvDatas.c_str(), rcvDatas.length());
+                    LOGINFO(rcvDatas);
 
                 } else if (targetFD > 0 || targetFD == SOCKET_NO_PAIR){
                     //left hand Rcved or first connected
+                    LOGWARN(rcvDatas);
 
                     if (targetFD == SOCKET_NO_PAIR){
                         targetFD = ConnectByRequest(rcvDatas);
+
+                        LOGERROR(targetFD);
 
                         if (targetFD >= 1){
                             struct epoll_event ev;
@@ -296,7 +307,7 @@ void Router::MainProcess(SOCKET epoll_fd)
                         dropPairFDsBySourceFD(sourceFD);
                     }
 
-                    LOGS << "SOCKET " << events[i].data.fd <<" with " << (targetFD > 0 ? targetFD : sourceFD) <<" closed" << LOGE;
+                    LOGS << "SOCKET nosndSuccess " << events[i].data.fd <<" with " << (targetFD > 0 || targetFD == SOCKET_NO_PAIR ? targetFD : sourceFD) <<" closed" << LOGE;
                 }
 
 
@@ -323,17 +334,38 @@ bool Router::switchRuleMatched(const std::string &url)
 
 void Router::addSwitchRule(const std::string &RawAtom)
 {
-    boost::unique_lock<boost::shared_mutex>  ulck(m_switchRuleSharedMutex);
-
     if (!switchRuleMatched(RawAtom)){
+        boost::unique_lock<boost::shared_mutex>  ulck(m_switchRuleSharedMutex);
         m_switchRules.push_back(RawAtom);
     }
 }
 
 int Router::getHostPortbyHttpRequest(const std::string &httpRequest, std::string &url)
 {
-    //如果url中没有指明端口号，就设定默认的80  
+    const std::string hostTag = "Host: ";
+    const std::string endTag  = "\r\n";
 
+    size_t startpos = httpRequest.find(hostTag);
+
+    if (startpos != std::string::npos){
+        startpos += hostTag.length();
+        size_t endpos = httpRequest.find(endTag, startpos);
+
+        if (endpos != std::string::npos){
+            std::string strhost = httpRequest.substr(startpos, endpos - startpos);
+
+            size_t segmentpos   =   strhost.find(":");
+            if (segmentpos != std::string::npos){
+                url =   strhost.substr(0, segmentpos);
+                return std::stoi(strhost.substr(segmentpos+1, strhost.length()- (segmentpos+1)));
+            }else{
+                url =   strhost;
+                return 80; //如果url中没有指明端口号，就设定默认的80  
+            }
+        }
+    }
+
+    return -1;
 }
 
 SOCKET Router::ConnectByRequest(const std::string &request)
