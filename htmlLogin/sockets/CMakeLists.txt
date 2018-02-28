@@ -99,3 +99,13 @@ ${Boost_LIBRARIES}
 boost_thread
 boost_system
 )
+
+add_executable( winRouter
+executable/WinRouter.cpp
+)
+target_link_libraries( winRouter
+${PROJECT_NAME}
+${Boost_LIBRARIES}
+boost_thread
+boost_system
+)

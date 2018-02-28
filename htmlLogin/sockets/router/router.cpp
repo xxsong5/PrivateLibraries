@@ -26,10 +26,12 @@ Router::~Router()
     //close left sockets
     for (auto iter = m_pairFDsSourceTarget.begin(); iter != m_pairFDsSourceTarget.end(); ++iter){
         close(iter->first);
+        LOGINFO(iter->first);
     }
 
     for (auto iter = m_pairFDsTargetSource.begin(); iter != m_pairFDsTargetSource.end(); ++iter){
         close(iter->first);
+        LOGINFO(iter->first);
     }
 
     //print current rules info
@@ -40,7 +42,7 @@ Router::~Router()
 }
 
 
-void Router::Run()
+void Router::Run(int threadCounts)
 {
     if (m_listenIP.empty() || m_listenPort <= 0){
         LOGERROR("listenning IP or Port is empty");
@@ -56,7 +58,7 @@ void Router::Run()
 
     m_doRun = true;
 
-    DoWork(1);
+    DoWork(threadCounts);
 }
 
 
@@ -93,6 +95,12 @@ RouterStatus Router::SetOrangeServerInfo(const std::string &OrangeServerIP,
     return RouterStatus::SUCCESS;
 }
 
+
+
+void Router::SetOrangeServerAuthority(bool hasAuthority)
+{
+    m_hasOrangeServerAuthority = hasAuthority;
+}
 
 
 RouterStatus Router::CreateListener(u_short localPort, std::string localIp)
@@ -236,6 +244,7 @@ void Router::MainProcess(SOCKET epoll_fd)
                         epoll_ctl(epoll_fd, EPOLL_CTL_DEL, targetFD, &ev);
                         dropPairFDsBySourceFD(events[i].data.fd);
                     }
+
                     if (sourceFD > 0){
                         close(sourceFD);
                         struct epoll_event ev;

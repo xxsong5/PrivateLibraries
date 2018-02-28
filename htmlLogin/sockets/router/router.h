@@ -50,10 +50,11 @@ public:
                                       const std::string &ProxyUserName = "", 
                                       const std::string &ProxyPassword = "");
 
+    void SetOrangeServerAuthority(bool hasAuthority);
 
     void addSwitchRule(const std::string &url);
 
-    void Run();
+    void Run(int threadCounts = 1);
     void Stop();
 
 
