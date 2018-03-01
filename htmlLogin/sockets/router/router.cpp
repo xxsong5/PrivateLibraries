@@ -2,6 +2,9 @@
 #include "proxy/Proxy.h"
 #include "log/log.h"
 
+#include <chrono>
+#include <ratio>
+
 using namespace std;
 
 
@@ -28,6 +31,8 @@ Router::~Router()
         close(iter->first);
         LOGINFO(iter->first);
     }
+
+    LOGINFO("--");
 
     for (auto iter = m_pairFDsTargetSource.begin(); iter != m_pairFDsTargetSource.end(); ++iter){
         close(iter->first);
@@ -59,6 +64,16 @@ void Router::Run(int threadCounts)
     m_doRun = true;
 
     DoWork(threadCounts);
+}
+
+
+
+void Router::Wait(int minutes)
+{
+    if (minutes > 0){
+        std::this_thread::sleep_for(std::chrono::duration<int, std::ratio<1,1> >(minutes*60));
+    }
+    Stop();
 }
 
 
@@ -229,8 +244,8 @@ void Router::MainProcess(SOCKET epoll_fd)
                 SOCKET sourceFD = getSourceFDbyTargetFD(events[i].data.fd);
 
                 //接收数据
-                std::string rcvDatas;
-                int rcvLen = Rcv(events[i].data.fd, rcvDatas);
+                char *rcvDatas = NULL;
+                int rcvLen = Rcv(events[i].data.fd, &rcvDatas);
 
                 if (rcvLen <= 0){
                     close(events[i].data.fd);
@@ -264,17 +279,15 @@ void Router::MainProcess(SOCKET epoll_fd)
 
                 if (sourceFD > 0 && targetFD < 1){
                     //right hand Rcved
-                    sndSize = Socket::Snd(sourceFD, rcvDatas.c_str(), rcvDatas.length());
-                    LOGINFO(rcvDatas);
+                    sndSize = Socket::Snd(sourceFD, rcvDatas, rcvLen);
+                    //LOGINFO(sourceFD);
+                    //LOGINFO(std::string(rcvDatas, rcvLen));
 
                 } else if (targetFD > 0 || targetFD == SOCKET_NO_PAIR){
                     //left hand Rcved or first connected
-                    LOGWARN(rcvDatas);
 
                     if (targetFD == SOCKET_NO_PAIR){
                         targetFD = ConnectByRequest(rcvDatas);
-
-                        LOGERROR(targetFD);
 
                         if (targetFD >= 1){
                             struct epoll_event ev;
@@ -288,7 +301,9 @@ void Router::MainProcess(SOCKET epoll_fd)
                     }
 
                     if (success){
-                            sndSize = Socket::Snd(targetFD, rcvDatas.c_str(), rcvDatas.length());
+                            //LOGERROR(targetFD);
+                            //LOGWARN(std::string(rcvDatas, rcvLen));
+                            sndSize = Socket::Snd(targetFD, rcvDatas, rcvLen);
                     }
 
                 } else {
@@ -319,7 +334,7 @@ void Router::MainProcess(SOCKET epoll_fd)
                     LOGS << "SOCKET nosndSuccess " << events[i].data.fd <<" with " << (targetFD > 0 || targetFD == SOCKET_NO_PAIR ? targetFD : sourceFD) <<" closed" << LOGE;
                 }
 
-
+                free(rcvDatas);
             }
         }
     }

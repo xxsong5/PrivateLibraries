@@ -1,4 +1,5 @@
 #include "socket.h"
+#include "log/log.h"
 
 
 int Socket::Snd(SOCKET sockfd, const char* snd, size_t len)
@@ -53,7 +54,7 @@ int Socket::Snd(SOCKET sockfd, const char* snd, size_t len)
 int Socket::Rcv(SOCKET sockfd, char **rcv)
 {
     size_t totalRcved = 0;
-    size_t totalLen = 2048;//2kb
+    size_t totalLen = 1024*1024*10;//10MB
     *rcv = (char*)malloc(totalLen);
 
     char   *crcv = *rcv;
@@ -77,14 +78,15 @@ int Socket::Rcv(SOCKET sockfd, char **rcv)
             // 这里表示对端的socket已正常关闭.
             totalRcved += buflen;
             return totalRcved;
-        }else  if(buflen == totalLen)
+        }else  if(buflen == clen)
         {
             // 需要再次读取
+            LOGERROR("需要再次读取");
             totalRcved += buflen;
-            totalLen    = totalRcved + 1024;
+            totalLen    = totalRcved + 1024*1024;
             *rcv = (char*)realloc(*rcv, totalLen);
             crcv = *rcv + totalRcved;
-            clen = 1024;
+            clen = 1024*1024;
         } else
         {
             totalRcved += buflen;

@@ -55,6 +55,7 @@ public:
     void addSwitchRule(const std::string &url);
 
     void Run(int threadCounts = 1);
+    void Wait(int minutes = 0);
     void Stop();
 
 
