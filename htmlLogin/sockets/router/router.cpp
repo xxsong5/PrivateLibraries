@@ -267,15 +267,15 @@ void Router::MainProcess(SOCKET epoll_fd)
                 if (sourceFD > 0 && targetFD < 1){
                     //right hand Rcved
                     sndSize = Socket::Snd(sourceFD, rcvDatas, rcvLen);
-                    LOGINFO(sourceFD);
-                    LOGINFO(std::string(rcvDatas, rcvLen));
+                    //LOGINFO(sourceFD);
+                    //LOGINFO(std::string(rcvDatas, rcvLen));
 
                 } else if (targetFD > 0 || targetFD == SOCKET_NO_PAIR){
                     //left hand Rcved or first connected
                     if (targetFD == SOCKET_NO_PAIR){
                         targetFD = ConnectByRequest(rcvDatas);
-                        LOGERROR(targetFD); 
-                        LOGERROR(std::string(rcvDatas, rcvLen));
+                        //LOGERROR(targetFD); 
+                        //LOGERROR(std::string(rcvDatas, rcvLen));
 
                         if (targetFD > 0){
                             fillTargetFDbySourceFD(events[i].data.fd, targetFD);
@@ -288,8 +288,8 @@ void Router::MainProcess(SOCKET epoll_fd)
                     }
 
                     if (success){
-                        LOGWARN(targetFD); 
-                        LOGWARN(std::string(rcvDatas, rcvLen));
+                        //LOGWARN(targetFD); 
+                        //LOGWARN(std::string(rcvDatas, rcvLen));
                         sndSize = Socket::Snd(targetFD, rcvDatas, rcvLen);
                     }
 
@@ -570,7 +570,7 @@ bool Router::RoundBack(SOCKET srcfd, char *rcvRaw, size_t len)
 
     if (m_proxyIP.empty() && strRaw.find("CONNECT") == 0){
 
-        std::string strSnd("HTTP/1.1 200 Connection established\r\n");
+        std::string strSnd("HTTP/1.1 200 Connection established\r\n\r\n");
         Socket::Snd(srcfd, strSnd);
 
         return true;
