@@ -7,7 +7,7 @@
 
 int main(int argc, char **argv)
 {
-    LOGCFG(false);
+    LOGCFG(true);
     LOGINFO("startting ...");
     Router  routerWithoutProxy(0, 8989, "127.0.0.1", 2000);
 
@@ -16,7 +16,7 @@ int main(int argc, char **argv)
     routerWithoutProxy.SetOrangeServerAuthority(true);
 
     LOGINFO("I'm running...");
-    routerWithoutProxy.Run(50);
+    routerWithoutProxy.Run(1);
 
     LOGINFO("the main thread is sleeping now");
 

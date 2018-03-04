@@ -15,6 +15,8 @@ m_listenIP(listenIP), m_listenPort(listenPort), m_maxConnect(maxConnect), m_rout
     m_orangeServerSocket    =   -1;
     m_hasOrangeServerAuthority  =   false;
 
+    m_epollFD   =   -1;
+
     addSwitchRule("google");
     addSwitchRule("youtube");
 }
@@ -73,7 +75,6 @@ void Router::Wait(int minutes)
     if (minutes > 0){
         std::this_thread::sleep_for(std::chrono::duration<int, std::ratio<1,1> >(minutes*60));
     }
-    Stop();
 }
 
 
@@ -186,13 +187,16 @@ void Router::DoWork(size_t threadCounts)
     threadCounts = threadCounts < 1 ? 1 : threadCounts;
 
     //1. 创建epoll描述符, 可接受连接数
-    SOCKET epoll_fd = epoll_create(m_maxConnect);
+    if ((m_epollFD = epoll_create(m_maxConnect)) < 0){
+        LOGERROR("create epoll failed");
+        return;
+    }
  
     //2. 创建、绑定和侦听socket; 并且将它放到epoll上面开始侦听数据到达和connect连接
     epoll_event ev;
     ev.data.fd = m_listenSocket;
     ev.events = EPOLLIN | EPOLLET;
-    if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, ev.data.fd, &ev) < 0){
+    if (epoll_ctl(m_epollFD, EPOLL_CTL_ADD, ev.data.fd, &ev) < 0){
         char Info[1000];
         sprintf(Info, "add listen fd failed!, which is belongs to %s:%d", m_listenIP.c_str(), m_listenPort);
         LOGERROR(Info);
@@ -201,10 +205,8 @@ void Router::DoWork(size_t threadCounts)
 
 
     for (int i = 0; i < threadCounts; ++i){
-        m_threadPools.emplace_back(&Router::MainProcess, this, epoll_fd);
+        m_threadPools.emplace_back(&Router::MainProcess, this, m_epollFD);
     }
-
-
 }
 
 
@@ -226,16 +228,10 @@ void Router::MainProcess(SOCKET epoll_fd)
                 struct sockaddr_in caddr;
                 socklen_t clen = sizeof(caddr);
  
-                // 接收连接
                 int connfd = accept(m_listenSocket, (sockaddr *)&caddr, &clen);
                 if (connfd < 0)
                     continue;
                 
-                // 将新接收的连接的socket放到epoll上面
-                struct epoll_event ev;
-                ev.data.fd = connfd;
-                ev.events = EPOLLIN|EPOLLET;
-                epoll_ctl(epoll_fd, EPOLL_CTL_ADD, connfd, &ev);
                 fillSourceFD(connfd);
             }
             else if (events[i].events & EPOLLIN)       // 有数据到达
@@ -248,26 +244,17 @@ void Router::MainProcess(SOCKET epoll_fd)
                 int rcvLen = Rcv(events[i].data.fd, &rcvDatas);
 
                 if (rcvLen <= 0){
+
                     close(events[i].data.fd);
-                    epoll_ctl(epoll_fd, EPOLL_CTL_DEL, events[i].data.fd, &events[i]);
 
                     if (targetFD > 0){
                         close(targetFD);
-                        struct epoll_event ev;
-                        ev.data.fd = targetFD;
-                        ev.events = EPOLLIN|EPOLLET;
-                        epoll_ctl(epoll_fd, EPOLL_CTL_DEL, targetFD, &ev);
-                        dropPairFDsBySourceFD(events[i].data.fd);
                     }
-
                     if (sourceFD > 0){
                         close(sourceFD);
-                        struct epoll_event ev;
-                        ev.data.fd = sourceFD;
-                        ev.events = EPOLLIN|EPOLLET;
-                        epoll_ctl(epoll_fd, EPOLL_CTL_DEL, sourceFD, &ev);
-                        dropPairFDsBySourceFD(sourceFD);
                     }
+
+                    dropPairFDsByAnyOne(events[i].data.fd);
 
                     LOGS << "SOCKET " << events[i].data.fd <<" with " << (targetFD > 0 || targetFD == SOCKET_NO_PAIR ? targetFD : sourceFD) <<" closed" << LOGE;
                     continue;
@@ -280,56 +267,47 @@ void Router::MainProcess(SOCKET epoll_fd)
                 if (sourceFD > 0 && targetFD < 1){
                     //right hand Rcved
                     sndSize = Socket::Snd(sourceFD, rcvDatas, rcvLen);
-                    //LOGINFO(sourceFD);
-                    //LOGINFO(std::string(rcvDatas, rcvLen));
+                    LOGINFO(sourceFD);
+                    LOGINFO(std::string(rcvDatas, rcvLen));
 
                 } else if (targetFD > 0 || targetFD == SOCKET_NO_PAIR){
                     //left hand Rcved or first connected
-
                     if (targetFD == SOCKET_NO_PAIR){
                         targetFD = ConnectByRequest(rcvDatas);
+                        LOGERROR(targetFD); 
+                        LOGERROR(std::string(rcvDatas, rcvLen));
 
-                        if (targetFD >= 1){
-                            struct epoll_event ev;
-                            ev.data.fd = targetFD;
-                            ev.events = EPOLLIN|EPOLLET;
-                            epoll_ctl(epoll_fd, EPOLL_CTL_ADD, targetFD, &ev);
+                        if (targetFD > 0){
                             fillTargetFDbySourceFD(events[i].data.fd, targetFD);
+                            if (RoundBack(events[i].data.fd, rcvDatas, rcvLen)){
+                                continue;
+                            }
                         } else {
                             success = false;
                         }
                     }
 
                     if (success){
-                            //LOGERROR(targetFD);
-                            //LOGWARN(std::string(rcvDatas, rcvLen));
-                            sndSize = Socket::Snd(targetFD, rcvDatas, rcvLen);
+                        LOGWARN(targetFD); 
+                        LOGWARN(std::string(rcvDatas, rcvLen));
+                        sndSize = Socket::Snd(targetFD, rcvDatas, rcvLen);
                     }
 
                 } else {
                     success = false;
                 }
-
+                    
                 if (!success || sndSize <= 0){
                     close(events[i].data.fd);
-                    epoll_ctl(epoll_fd, EPOLL_CTL_DEL, events[i].data.fd, &events[i]);
 
                     if (targetFD > 0){
                         close(targetFD);
-                        struct epoll_event ev;
-                        ev.data.fd = targetFD;
-                        ev.events = EPOLLIN|EPOLLET;
-                        epoll_ctl(epoll_fd, EPOLL_CTL_DEL, targetFD, &ev);
-                        dropPairFDsBySourceFD(events[i].data.fd);
                     }
                     if (sourceFD > 0){
                         close(sourceFD);
-                        struct epoll_event ev;
-                        ev.data.fd = sourceFD;
-                        ev.events = EPOLLIN|EPOLLET;
-                        epoll_ctl(epoll_fd, EPOLL_CTL_DEL, sourceFD, &ev);
-                        dropPairFDsBySourceFD(sourceFD);
                     }
+
+                    dropPairFDsByAnyOne(events[i].data.fd);
 
                     LOGS << "SOCKET nosndSuccess " << events[i].data.fd <<" with " << (targetFD > 0 || targetFD == SOCKET_NO_PAIR ? targetFD : sourceFD) <<" closed" << LOGE;
                 }
@@ -465,24 +443,49 @@ SOCKET Router::ConnectByRequest(const std::string &request)
     }
 }
 
+void Router::AddEpollSocket(SOCKET fd, uint32_t events)
+{
+    if (fd > 0){
+        struct epoll_event ev;
+        ev.data.fd = fd;
+        ev.events = events;
+        epoll_ctl(m_epollFD, EPOLL_CTL_ADD, fd, &ev);
+    }
+}
+
+void Router::RemoveEpollSocket(SOCKET fd, uint32_t events)
+{
+    if (fd > 0){
+        struct epoll_event ev;
+        ev.data.fd = fd;
+        ev.events = events;
+        epoll_ctl(m_epollFD, EPOLL_CTL_DEL, fd, &ev);
+    }
+}
 
 void Router::fillSourceFD(SOCKET sourcefd)
 {
-    std::lock_guard<std::mutex>  lck(m_FDsMutex);
-    
-    if (m_pairFDsSourceTarget.find(sourcefd) == m_pairFDsSourceTarget.end()){
-        m_pairFDsSourceTarget[sourcefd] = SOCKET_NO_PAIR;
+    {
+        std::lock_guard<std::mutex>  lck(m_FDsMutex);
+        if (m_pairFDsSourceTarget.find(sourcefd) == m_pairFDsSourceTarget.end()){
+            m_pairFDsSourceTarget[sourcefd] = SOCKET_NO_PAIR;
+        }
     }
+
+    AddEpollSocket(sourcefd);
 }
 
 void Router::fillTargetFDbySourceFD(SOCKET indexfd, SOCKET targetfd)
 {
-    std::lock_guard<std::mutex>  lck(m_FDsMutex);
+    {
+        std::lock_guard<std::mutex>  lck(m_FDsMutex);
 
-    m_pairFDsSourceTarget[indexfd]  = targetfd;
+        m_pairFDsSourceTarget[indexfd]  = targetfd;
 
-    m_pairFDsTargetSource[targetfd] = indexfd;
+        m_pairFDsTargetSource[targetfd] = indexfd;
+    }
 
+    AddEpollSocket(targetfd);
 }
 
 void Router::dropPairFDsBySourceFD(SOCKET srcFd)
@@ -493,8 +496,11 @@ void Router::dropPairFDsBySourceFD(SOCKET srcFd)
         m_pairFDsSourceTarget.erase(srcFd);
         if (targetfd != SOCKET_NO_PAIR){
             m_pairFDsTargetSource.erase(targetfd);
+            RemoveEpollSocket(targetfd);
         }
     }
+
+    RemoveEpollSocket(srcFd);
 }
 
 void Router::dropPairFDsByTargetFD(SOCKET tgtFd)
@@ -505,8 +511,34 @@ void Router::dropPairFDsByTargetFD(SOCKET tgtFd)
         m_pairFDsTargetSource.erase(tgtFd);
         if (sourcefd > 0){
             m_pairFDsSourceTarget.erase(sourcefd);
+            RemoveEpollSocket(sourcefd);
         }
     }
+
+    RemoveEpollSocket(tgtFd);
+}
+
+
+void Router::dropPairFDsByAnyOne(SOCKET fd)
+{
+    std::lock_guard<std::mutex>  lck(m_FDsMutex);
+    if (m_pairFDsTargetSource.find(fd) != m_pairFDsTargetSource.end()){
+        SOCKET sourcefd = m_pairFDsTargetSource[fd];
+        m_pairFDsTargetSource.erase(fd);
+        if (sourcefd > 0){
+            m_pairFDsSourceTarget.erase(sourcefd);
+            RemoveEpollSocket(sourcefd);
+        }
+    } else if (m_pairFDsSourceTarget.find(fd) != m_pairFDsSourceTarget.end()){
+        SOCKET targetfd = m_pairFDsSourceTarget[fd];
+        m_pairFDsSourceTarget.erase(fd);
+        if (targetfd != SOCKET_NO_PAIR){
+            m_pairFDsTargetSource.erase(targetfd);
+            RemoveEpollSocket(targetfd);
+        }
+    }
+
+    RemoveEpollSocket(fd);
 }
 
 SOCKET Router::getTargetFDbySourceFD(SOCKET srcFd) // invaild if less than 1
@@ -529,4 +561,20 @@ SOCKET Router::getSourceFDbyTargetFD(SOCKET tgtFd) // invaild if less than 1
     }
 
     return -1;
+}
+
+
+bool Router::RoundBack(SOCKET srcfd, char *rcvRaw, size_t len)
+{
+    std::string strRaw(rcvRaw, len);
+
+    if (m_proxyIP.empty() && strRaw.find("CONNECT") == 0){
+
+        std::string strSnd("HTTP/1.1 200 Connection established\r\n");
+        Socket::Snd(srcfd, strSnd);
+
+        return true;
+    }
+
+    return false;
 }

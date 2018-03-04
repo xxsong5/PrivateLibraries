@@ -75,11 +75,17 @@ private:
     bool switchRuleMatched(const std::string &url);
 
 
+    bool RoundBack(SOCKET srcfd, char *rcvRaw, size_t len);
+
+    void AddEpollSocket(SOCKET fd, uint32_t events = EPOLLIN|EPOLLET);
+    void RemoveEpollSocket(SOCKET fd, uint32_t events = EPOLLIN|EPOLLET);
+
 
     void fillTargetFDbySourceFD(SOCKET indexfd, SOCKET targetfd);
     void fillSourceFD(SOCKET sourcefd);
     void dropPairFDsBySourceFD(SOCKET srcFd);
     void dropPairFDsByTargetFD(SOCKET tgtFd);
+    void dropPairFDsByAnyOne(SOCKET fd);
     SOCKET getTargetFDbySourceFD(SOCKET srcFd); // invaild if less than 1
     SOCKET getSourceFDbyTargetFD(SOCKET tgtFd); // invaild if less than 1
     std::mutex  m_FDsMutex;
@@ -96,6 +102,8 @@ private:
     long                     m_routerProtocolType;
 
     SOCKET                   m_orangeServerSocket;
+
+    SOCKET                   m_epollFD;
 
     boost::shared_mutex      m_switchRuleSharedMutex;
     std::vector<std::string> m_switchRules; //*NOTE* call directly or through OrangeServer, all matched will call through Orangeserver
