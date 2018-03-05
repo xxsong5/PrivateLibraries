@@ -16,11 +16,11 @@ int main(int argc, char **argv)
     routerWithoutProxy.SetOrangeServerAuthority(true);
 
     LOGINFO("I'm running...");
-    routerWithoutProxy.Run(8);
+    routerWithoutProxy.Run(2);
 
     LOGINFO("the main thread is sleeping now");
 
-    std::this_thread::sleep_for(std::chrono::duration<int>(100));
+    std::this_thread::sleep_for(std::chrono::duration<int>(1000));
 
     routerWithoutProxy.Stop();
 

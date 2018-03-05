@@ -216,35 +216,46 @@ void Router::MainProcess(SOCKET epoll_fd)
 
     while (m_doRun)
     {
+        LOGS << 1 << LOGE;
         // 等待epoll上面的事件触发，然后将他们的fd检索出来
         struct epoll_event events[m_maxConnect];
         int evn_cnt = epoll_wait(epoll_fd, events, m_maxConnect, -1);
+        LOGS << 2 << LOGE;
  
         // 循环处理检索出来的events队列中的每个fd
         for (int i=0; i<evn_cnt; i++)
         {
+        LOGS << 3 << LOGE;
             if (events[i].data.fd == m_listenSocket)   // 有客户端connect过来
             {
+        LOGS << 4 << LOGE;
                 struct sockaddr_in caddr;
                 socklen_t clen = sizeof(caddr);
  
                 int connfd = accept(m_listenSocket, (sockaddr *)&caddr, &clen);
+        LOGS << 5 << LOGE;
                 if (connfd < 0)
                     continue;
                 
+        LOGS << 6 << LOGE;
                 fillSourceFD(connfd);
+        LOGS << 7 << LOGE;
             }
             else if (events[i].events & EPOLLIN)       // 有数据到达
             {
+        LOGS << 8 << LOGE;
                 SOCKET targetFD = getTargetFDbySourceFD(events[i].data.fd);
                 SOCKET sourceFD = getSourceFDbyTargetFD(events[i].data.fd);
 
+        LOGS << 9 << LOGE;
                 //接收数据
                 char *rcvDatas = NULL;
                 int rcvLen = Rcv(events[i].data.fd, &rcvDatas);
+        LOGS << 10 << LOGE;
 
                 if (rcvLen <= 0){
 
+        LOGS << 11 << LOGE;
                     close(events[i].data.fd);
 
                     if (targetFD > 0){
@@ -254,50 +265,68 @@ void Router::MainProcess(SOCKET epoll_fd)
                         close(sourceFD);
                     }
 
+        LOGS << 12 << LOGE;
                     dropPairFDsByAnyOne(events[i].data.fd);
+        LOGS << 13 << LOGE;
 
                     LOGS << "SOCKET " << events[i].data.fd <<" with " << (targetFD > 0 || targetFD == SOCKET_NO_PAIR ? targetFD : sourceFD) <<" closed" << LOGE;
                     continue;
                 }
 
+        LOGS << 14 << LOGE;
 
                 std::string strSnd; int  sndSize{-1};
                 bool success = true;
 
                 if (sourceFD > 0 && targetFD < 1){
                     //right hand Rcved
+        LOGS << 15 << LOGE;
                     sndSize = Socket::Snd(sourceFD, rcvDatas, rcvLen);
+        LOGS << 16 << LOGE;
                     //LOGINFO(sourceFD);
                     //LOGINFO(std::string(rcvDatas, rcvLen));
 
                 } else if (targetFD > 0 || targetFD == SOCKET_NO_PAIR){
                     //left hand Rcved or first connected
+        LOGS << 17 << LOGE;
                     if (targetFD == SOCKET_NO_PAIR){
+        LOGS << 18 << LOGE;
                         targetFD = ConnectByRequest(rcvDatas);
+        LOGS << 19 << LOGE;
                         //LOGERROR(targetFD); 
                         //LOGERROR(std::string(rcvDatas, rcvLen));
 
                         if (targetFD > 0){
+        LOGS << 20 << LOGE;
                             fillTargetFDbySourceFD(events[i].data.fd, targetFD);
+        LOGS << 21 << LOGE;
                             if (RoundBack(events[i].data.fd, rcvDatas, rcvLen)){
+        LOGS << 22 << LOGE;
                                 continue;
                             }
                         } else {
+        LOGS << 23 << LOGE;
                             success = false;
                         }
                     }
 
+        LOGS << 24 << LOGE;
                     if (success){
+        LOGS << 25 << LOGE;
                         //LOGWARN(targetFD); 
                         //LOGWARN(std::string(rcvDatas, rcvLen));
                         sndSize = Socket::Snd(targetFD, rcvDatas, rcvLen);
+        LOGS << 26 << LOGE;
                     }
 
                 } else {
                     success = false;
+        LOGS << 27 << LOGE;
                 }
                     
+        LOGS << 28 << LOGE;
                 if (!success || sndSize <= 0){
+        LOGS << 29 << LOGE;
                     close(events[i].data.fd);
 
                     if (targetFD > 0){
@@ -307,12 +336,16 @@ void Router::MainProcess(SOCKET epoll_fd)
                         close(sourceFD);
                     }
 
+        LOGS << 30 << LOGE;
                     dropPairFDsByAnyOne(events[i].data.fd);
+        LOGS << 31 << LOGE;
 
                     LOGS << "SOCKET nosndSuccess " << events[i].data.fd <<" with " << (targetFD > 0 || targetFD == SOCKET_NO_PAIR ? targetFD : sourceFD) <<" closed" << LOGE;
                 }
+        LOGS << 32 << LOGE;
 
                 free(rcvDatas);
+        LOGS << 33 << LOGE;
             }
         }
     }
@@ -373,36 +406,49 @@ int Router::getHostPortbyHttpRequest(const std::string &httpRequest, std::string
 SOCKET Router::ConnectByRequest(const std::string &request)
 {
     //get remotehost by request
+    LOGS << 18.1 << LOGE;
     string  _host = "";  
     int     _port = getHostPortbyHttpRequest(request, _host);
 
+    LOGS << 18.2 << LOGE;
 
     sockaddr_in addr_server;  
     memset(&addr_server, 0, sizeof(addr_server));
 
+    LOGS << 18.3 << LOGE;
     if (!m_hasOrangeServerAuthority || !switchRuleMatched(_host)){
 
+    LOGS << 18.4 << LOGE;
         SOCKET sock;
         if (HasProxyServer()){
 
+    LOGS << 18.5 << LOGE;
             addr_server.sin_family = AF_INET;
             addr_server.sin_port = htons(GetProxyPort());
             addr_server.sin_addr.s_addr = inet_addr(GetProxyIP().c_str());
 
+    LOGS << 18.6 << LOGE;
             sock = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP);  
+    LOGS << 18.7 << LOGE;
         } else {
+    LOGS << 18.8 << LOGE;
             struct hostent *p_hostent = gethostbyname(_host.c_str());  
             if(p_hostent == NULL) {
                 return -1;  
             }
+    LOGS << 18.9 << LOGE;
             addr_server.sin_family = AF_INET;  
             addr_server.sin_port = htons(_port);
             memcpy(&(addr_server.sin_addr),p_hostent->h_addr_list[0],sizeof(addr_server.sin_addr));  
 
+    LOGS << 18.10 << LOGE;
             sock = socket(p_hostent->h_addrtype,SOCK_STREAM,IPPROTO_TCP);  
+    LOGS << 18.11 << LOGE;
         }
 
+    LOGS << 18.12 << LOGE;
         int res = connect(sock,(sockaddr*)&addr_server,sizeof(addr_server));  
+    LOGS << 18.13 << LOGE;
 
         if(res < 0){
             close(sock);
@@ -410,16 +456,21 @@ SOCKET Router::ConnectByRequest(const std::string &request)
         } else {
             return sock;
         }
+    LOGS << 18.14 << LOGE;
 
     } else {
 
+    LOGS << 18.15 << LOGE;
         SOCKET sock = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP);  
+    LOGS << 18.16 << LOGE;
         if (HasProxyServer()){
 
+    LOGS << 18.17 << LOGE;
             if (ConnectProxyServer(sock) != ProxyStatus::SUCCESS){
                 close(sock);
                 return -1;
             }
+    LOGS << 18.18 << LOGE;
 
             if (ConnectServer(sock, m_orangeServerIP, m_orangeServerPort) == ProxyStatus::SUCCESS){
                 return sock;
@@ -427,18 +478,22 @@ SOCKET Router::ConnectByRequest(const std::string &request)
                 close(sock);
                 return -1;
             }
+    LOGS << 18.19 << LOGE;
 
         } else {
 
+    LOGS << 18.20 << LOGE;
             addr_server.sin_family = AF_INET;
             addr_server.sin_port = htons(m_orangeServerPort);
             addr_server.sin_addr.s_addr = inet_addr(m_orangeServerIP.c_str());
+    LOGS << 18.21 << LOGE;
             if (connect(sock,(sockaddr*)&addr_server,sizeof(addr_server)) >= 0){
                 return sock;
             } else {
                 close(sock);
                 return -1;
             }
+    LOGS << 18.22 << LOGE;
         }
     }
 }
