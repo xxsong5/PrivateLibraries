@@ -459,9 +459,14 @@ void Router::RemoveEpollSocket(SOCKET fd, uint32_t events)
         struct epoll_event ev;
         ev.data.fd = fd;
         ev.events = events;
-        epoll_ctl(m_epollFD, EPOLL_CTL_DEL, fd, &ev);
+//        epoll_ctl(m_epollFD, EPOLL_CTL_DEL, fd, &ev);
     }
 }
+
+void Router::RemoveEpollSocket(struct epoll_event   *ev)
+{
+}
+
 
 void Router::fillSourceFD(SOCKET sourcefd)
 {

@@ -79,6 +79,7 @@ private:
 
     void AddEpollSocket(SOCKET fd, uint32_t events = EPOLLIN|EPOLLET);
     void RemoveEpollSocket(SOCKET fd, uint32_t events = EPOLLIN|EPOLLET);
+    void RemoveEpollSocket(struct epoll_event   *epoll);
 
 
     void fillTargetFDbySourceFD(SOCKET indexfd, SOCKET targetfd);
