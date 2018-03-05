@@ -136,9 +136,12 @@ private:
     char                 m_HeadInfo[1000];
 };
 
-#define     __GREEN_COLOR__     "\033[1;32m"
-#define     __RED_COLOR__       "\033[1;31m"
-#define     __YELLOW_COLOR__    "\033[1;33m"
+#define     __GREEN_COLOR__     "\033[0;32m"
+#define     __LGREEN_COLOR__     "\033[0;32m"
+#define     __RED_COLOR__       "\033[0;31m"
+#define     __LRED_COLOR__       "\033[0;31m"
+#define     __YELLOW_COLOR__    "\033[0;33m"
+#define     __LYELLOW_COLOR__    "\033[0;33m"
 #define     __CLOSE_COLOR__     "\033[0m"
 
 
@@ -161,10 +164,10 @@ _logger->Config(_2File); \
 Logger * _logger = Logger::getInstance(); \
 if (_logger){ \
     char headInfo[1000]={}; \
-    sprintf(headInfo, "[LOGINFO__%s__%s__%06d]:\t", _logger->gettid().c_str(), __FILE__, __LINE__); \
+    sprintf(headInfo, "[LOGINFO__%s__%s__%06d]", _logger->gettid().c_str(), __FILE__, __LINE__); \
     std::lock_guard<std::mutex>    lck(_logger->getMutex()); \
     if (!_logger->isWrite2File()) { \
-        std::cout << __GREEN_COLOR__ << std::string(headInfo) << astring << __CLOSE_COLOR__ << std::endl; \
+        std::cout << __LGREEN_COLOR__ << std::string(headInfo) << __GREEN_COLOR__ << astring << __CLOSE_COLOR__ << std::endl; \
     }else { \
         std::stringstream ss; \
         ss << headInfo; \
@@ -180,10 +183,10 @@ if (_logger){ \
 Logger * _logger = Logger::getInstance(); \
 if (_logger){ \
     char headInfo[1000]={}; \
-    sprintf(headInfo, "[LOGWARN__%s__%s__%06d]:\t", _logger->gettid().c_str(), __FILE__, __LINE__); \
+    sprintf(headInfo, "[LOGWARN__%s__%s__%06d]", _logger->gettid().c_str(), __FILE__, __LINE__); \
     std::lock_guard<std::mutex>    lck(_logger->getMutex()); \
     if (!_logger->isWrite2File()) { \
-        std::cout << __YELLOW_COLOR__ << std::string(headInfo) << astring << __CLOSE_COLOR__ << std::endl; \
+        std::cout << __LYELLOW_COLOR__ << std::string(headInfo) << __YELLOW_COLOR__ << astring << __CLOSE_COLOR__ << std::endl; \
     }else { \
         std::stringstream ss; \
         ss << headInfo; \
@@ -198,10 +201,10 @@ if (_logger){ \
 Logger * _logger = Logger::getInstance(); \
 if (_logger){ \
     char headInfo[1000]={}; \
-    sprintf(headInfo, "[LOGERROR__%s__%s__%06d]:\t", _logger->gettid().c_str(), __FILE__, __LINE__); \
+    sprintf(headInfo, "[LOGERROR__%s__%s__%06d]", _logger->gettid().c_str(), __FILE__, __LINE__); \
     std::lock_guard<std::mutex>    lck(_logger->getMutex()); \
     if (!_logger->isWrite2File()) { \
-        std::cout << __RED_COLOR__ << std::string(headInfo) << astring << __CLOSE_COLOR__ << std::endl; \
+        std::cout << __LRED_COLOR__ << std::string(headInfo) << __RED_COLOR__ << astring << __CLOSE_COLOR__ << std::endl; \
     }else { \
         std::stringstream ss; \
         ss << headInfo; \
@@ -217,8 +220,8 @@ if (_logger){ \
 
 #define LOGS  \
     if (Logger::getInstance()) \
-        sprintf(Logger::getInstance()->getMem1000(), "[LOG__%s__%s__%06d]:\t", Logger::getInstance()->gettid().c_str(), __FILE__, __LINE__); \
-    std::cout << __GREEN_COLOR__ << std::string(Logger::getInstance()->getMem1000())
+        sprintf(Logger::getInstance()->getMem1000(), "[LOG__%s__%s__%06d]", Logger::getInstance()->gettid().c_str(), __FILE__, __LINE__); \
+    std::cout << __LGREEN_COLOR__ << std::string(Logger::getInstance()->getMem1000()) << __GREEN_COLOR__
 
 #define LOGE \
      __CLOSE_COLOR__ << std::endl;
